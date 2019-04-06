@@ -1,6 +1,5 @@
 const fitToViewport = require('./utils/fitToViewport');
 const d3 = require('d3-force');
-
 const DEFAULT_STEPS = 30;
 
 const ForceDirected = function(model) {
@@ -8,7 +7,6 @@ const ForceDirected = function(model) {
     model.steps = DEFAULT_STEPS;
   }
 
-  // convert to d3-force schema
   let nodes = [];
   let links = [];
 
@@ -26,10 +24,12 @@ const ForceDirected = function(model) {
     });
   });
 
-  let simulation = d3.forceSimulation(nodes)
+  // https://www.npmjs.com/package/d3-force
+  var simulation = d3.forceSimulation(nodes)
     .force('charge', d3.forceManyBody())
-    .force('link', d3.forceLink(links))
-    .force('center', d3.forceCenter());
+    .force('link', d3.forceLink(links).distance(20).strength(1)) 
+    .force('x', d3.forceX())
+    .force('y', d3.forceY());
 
   simulation.tick(model.steps);
   simulation.stop();
@@ -39,7 +39,7 @@ const ForceDirected = function(model) {
     model.nodes[n].y = node.y;
   });
 
-  fitToViewport(model.nodes);
+  fitToViewport(model.nodes, false);
 
   return model;
 };

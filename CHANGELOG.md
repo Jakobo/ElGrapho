@@ -2,9 +2,15 @@
 
 ## v2.1.0
 * models are now called layouts
+* Ring layout renamed to Chord
+* Web layout renamed to Hairball
+* ForceDirected layouts now using d3-force which is O(nlog(n)) instead of Webcola which is much slower
+* new RadialTree layout
+* nodeSize range now 0 to 1
+* Cluster layout now better positions the cluster centers to fully utilize viewport space
 
 ## v2.0.0
-* License is now MIT!
+* License is now MIT
 * new API
 * ForceDirected model now using Webcola for layout
 * new Web model which is a simplified force directed graph that runs in O(n) time

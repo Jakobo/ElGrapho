@@ -15,74 +15,72 @@
 
     <script src="../engine/dist/ElGrapho.js"></script>
     <script>
-let NUM_LEVELS = 7;
-let MAX_LEVEL_MULTIPLIER = 5;
+
+const NUM_LEVELS = 6;
+const NUM_CHILDREN = 3;
 
 let model = {
   nodes: [],
   edges: [],
-  width: 1000,
+  width: 500,
   height: 500
 };
 
-let edgeIndex = 0;
-let levels = [];
-let n = 0;
-let nodeGroups = {};
-let groupIndex = 1;
+// https://en.wikipedia.org/wiki/K-ary_tree
+let numNodes = (Math.pow(NUM_CHILDREN, NUM_LEVELS)-1) / (NUM_CHILDREN-1);
 
-for (let j=0; j<NUM_LEVELS; j++) {
-  levels[j] = [];
+for (let n=0; n<numNodes; n++) {
+  let group;
 
-  if (j === 0) {
-    let group = 0;
-    model.nodes[n] = {
-      group: group,
-      //label: n
-    };
-    nodeGroups[n] = group;
-    levels[j].push(n);
-    n++;
+  if (n<numNodes/3) {
+    group = 0;
+  }
+  else if (n<2*numNodes/3) {
+    group = 1;
   }
   else {
-    let lastLevel = levels[j-1];
-    let lastLevelLen = lastLevel.length;
-    let numNodes = lastLevelLen + lastLevelLen * Math.floor(Math.random() * MAX_LEVEL_MULTIPLIER);
+    group = 2;
+  }
+  model.nodes.push({
+    group: group
+  })
+}
 
-    for (let k=0; k<numNodes; k++) {
-      let parentIndex = lastLevel[Math.floor(Math.random() * lastLevelLen)];
-      model.edges[edgeIndex] = {
-        from: parentIndex,
+// model.nodes.push({
+//   group: 0
+// });
+
+let n = 1;
+
+function addChildren(parent, level) {
+  if (level < NUM_LEVELS-1) {
+    for (let i=0; i<NUM_CHILDREN; i++) {
+      // model.nodes.push({
+      //   group: parent
+      // });
+
+      model.edges.push({
+        from: parent,
         to: n
-      };
-      edgeIndex++;
+      });
 
-      if (j === 0) {
-        group = 0;
-      }
-      else if (j === 1) {
-        group = groupIndex++;
-      }
-      else {
-        group = nodeGroups[parentIndex];
-      }
-
-      model.nodes[n] = {
-        group: group,
-        label: n
-      };
-      nodeGroups[n] = group;
-      levels[j].push(n);
-      n++;
+      addChildren(n++, level+1);
     }
   }
 }
 
+addChildren(0, 0);
+
+
+
 let graph = new ElGrapho({
   container: document.getElementById('container'),
   model: ElGrapho.layouts.Tree(model),
-  debug: false
+  debug: true
 });
+
     </script>
+
+
   </body>
 </html>

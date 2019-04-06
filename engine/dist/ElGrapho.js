@@ -1,3 +1,30 @@
+/*
+ * El Grapho v2.1.0
+ * A high performance WebGL graph data visualization engine
+ * Release Date: 04-06-2019
+ * https://github.com/ericdrowell/elgrapho
+ * Licensed under the MIT or GPL Version 2 licenses.
+ *
+ * Copyright (C) 2019 Eric Rowell @ericdrowell
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 (function webpackUniversalModuleDefinition(root, factory) {
 	if(typeof exports === 'object' && typeof module === 'object')
 		module.exports = factory();
@@ -95,6 +122,586 @@ return /******/ (function(modules) { // webpackBootstrap
 /******/ })
 /************************************************************************/
 /******/ ({
+
+/***/ "../../concrete/build/concrete.js":
+/*!**************************************************************!*\
+  !*** /Users/ericrowell/workspace/concrete/build/concrete.js ***!
+  \**************************************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+var __WEBPACK_AMD_DEFINE_RESULT__;/*
+ * Concrete v3.0.2
+ * A lightweight Html5 Canvas framework that enables hit detection, layering, multi buffering, 
+ * pixel ratio management, exports, and image downloads
+ * Release Date: 11-28-2018
+ * https://github.com/ericdrowell/concrete
+ * Licensed under the MIT or GPL Version 2 licenses.
+ *
+ * Copyright (C) 2018 Eric Rowell @ericdrowell
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
+var Concrete = {},
+    idCounter = 0;
+
+Concrete.PIXEL_RATIO = (function() {
+  // client browsers
+  if (window && window.navigator && window.navigator.userAgent && !/PhantomJS/.test(window.navigator.userAgent)) {
+    return 2;
+  }
+  // headless browsers
+  else {
+    return 1;
+  }
+})();
+
+Concrete.viewports = [];
+
+////////////////////////////////////////////////////////////// VIEWPORT //////////////////////////////////////////////////////////////
+
+/**
+ * Concrete Viewport constructor
+ * @param {Object} config
+ * @param {Integer} config.width - viewport width in pixels
+ * @param {Integer} config.height - viewport height in pixels
+ */
+Concrete.Viewport = function(config) {
+  if (!config) {
+    config = {};
+  }
+
+  this.container = config.container;
+  this.layers = []; 
+  this.id = idCounter++;
+  this.scene = new Concrete.Scene();
+
+  this.setSize(config.width || 0, config.height || 0);
+  
+
+  // clear container
+  config.container.innerHTML = '';
+  config.container.appendChild(this.scene.canvas);
+
+  Concrete.viewports.push(this);
+};
+
+Concrete.Viewport.prototype = {
+  /**
+   * add layer
+   * @param {Concrete.Layer} layer
+   * @returns {Concrete.Viewport}
+   */
+  add: function(layer) {
+    this.layers.push(layer);
+    layer.setSize(layer.width || this.width, layer.height || this.height);
+    layer.viewport = this;
+    return this;
+  },
+  /**
+   * set viewport size
+   * @param {Integer} width - viewport width in pixels
+   * @param {Integer} height - viewport height in pixels
+   * @returns {Concrete.Viewport}
+   */
+  setSize: function(width, height) {
+    this.width = width;
+    this.height = height;
+    this.scene.setSize(width, height);
+    return this;
+  },
+  /**
+   * get key associated to coordinate.  This can be used for mouse interactivity.
+   * @param {Number} x
+   * @param {Number} y
+   * @returns {Integer} integer - returns -1 if no pixel is there
+   */
+  getIntersection: function(x, y) {
+    var layers = this.layers,
+        len = layers.length,
+        n, layer, key;
+
+    for (n=len-1; n>=0; n--) {
+      layer = layers[n];
+      key = layer.hit.getIntersection(x, y);
+      if (key >= 0) {
+        return key;
+      }
+    }
+
+    return -1;
+  },
+  /** 
+   * get viewport index from all Concrete viewports
+   * @returns {Integer}
+   */
+  getIndex: function() {
+    var viewports = Concrete.viewports,
+        len = viewports.length,
+        n = 0,
+        viewport;
+
+    for (n=0; n<len; n++) {
+      viewport = viewports[n];
+      if (this.id === viewport.id) {
+        return n;
+      }
+    }
+
+    return null;
+  },
+  /**
+   * destroy viewport
+   */
+  destroy: function() {
+    // destroy layers
+    this.layers.forEach(function(layer) {
+      layer.destroy();
+    });
+
+    // clear dom
+    this.container.innerHTML = '';
+    
+    // remove self from viewports array
+    Concrete.viewports.splice(this.getIndex(), 1);
+  },
+  /**
+   * composite all layers onto visible canvas
+   */
+  render: function() {
+    var scene = this.scene;
+
+    scene.clear();
+
+    this.layers.forEach(function(layer) {
+      if (layer.visible) {
+        scene.context.drawImage(layer.scene.canvas, 0, 0, layer.width, layer.height);
+      }
+    });
+  }
+};
+
+////////////////////////////////////////////////////////////// LAYER //////////////////////////////////////////////////////////////
+
+/**
+ * Concrete Layer constructor
+ * @param {Object} config
+ * @param {Integer} [config.x]
+ * @param {Integer} [config.y]
+ * @param {Integer} [config.width] - viewport width in pixels
+ * @param {Integer} [config.height] - viewport height in pixels
+ */
+Concrete.Layer = function(config) {
+  if (!config) {
+    config = {};
+  }
+  this.x = 0;
+  this.y = 0;
+  this.width = 0;
+  this.height = 0;
+  this.visible = true;
+  this.id = idCounter++;
+  this.hit = new Concrete.Hit({
+    contextType: config.contextType
+  });
+  this.scene = new Concrete.Scene({
+    contextType: config.contextType
+  });
+
+  if (config.x && config.y) {
+    this.setPosition(config.x, config.y);
+  }
+  if (config.width && config.height) {
+    this.setSize(config.width, config.height);
+  }
+};
+
+Concrete.Layer.prototype = {
+  /**
+   * set layer position
+   * @param {Number} x
+   * @param {Number} y
+   * @returns {Concrete.Layer}
+   */
+  setPosition: function(x, y) {
+    this.x = x;
+    this.y = y;
+    return this;
+  },
+  /**
+   * set layer size
+   * @param {Number} width
+   * @param {Number} height
+   * @returns {Concrete.Layer}
+   */
+  setSize: function(width, height) {
+    this.width = width;
+    this.height = height;
+    this.scene.setSize(width, height);
+    this.hit.setSize(width, height);
+    return this;
+  },
+  /** 
+   * move up
+   * @returns {Concrete.Layer}
+   */
+  moveUp: function() {
+    var index = this.getIndex(),
+        viewport = this.viewport,
+        layers = viewport.layers;
+
+    if (index < layers.length - 1) {
+      // swap
+      layers[index] = layers[index+1];
+      layers[index+1] = this;
+    }
+
+    return this;
+  },
+  /** 
+   * move down
+   * @returns {Concrete.Layer}
+   */
+  moveDown: function() {
+    var index = this.getIndex(),
+        viewport = this.viewport,
+        layers = viewport.layers;
+
+    if (index > 0) {
+      // swap
+      layers[index] = layers[index-1];
+      layers[index-1] = this;
+    }
+
+    return this;
+  },
+  /** 
+   * move to top
+   * @returns {Concrete.Layer}
+   */
+  moveToTop: function() {
+    var index = this.getIndex(),
+        viewport = this.viewport,
+        layers = viewport.layers;
+
+    layers.splice(index, 1);
+    layers.push(this);
+  },
+  /** 
+   * move to bottom
+   * @returns {Concrete.Layer}
+   */
+  moveToBottom: function() {
+    var index = this.getIndex(),
+        viewport = this.viewport,
+        layers = viewport.layers;
+
+    layers.splice(index, 1);
+    layers.unshift(this);
+
+    return this;
+  },
+  /** 
+   * get layer index from viewport layers
+   * @returns {Number|null}
+   */
+  getIndex: function() {
+    var layers = this.viewport.layers,
+        len = layers.length,
+        n = 0,
+        layer;
+
+    for (n=0; n<len; n++) {
+      layer = layers[n];
+      if (this.id === layer.id) {
+        return n;
+      }
+    }
+
+    return null;
+  },
+  /**
+   * destroy
+   */
+  destroy: function() {
+    // remove self from layers array
+    this.viewport.layers.splice(this.getIndex(), 1);
+  }
+};
+
+////////////////////////////////////////////////////////////// SCENE //////////////////////////////////////////////////////////////
+
+/**
+ * Concrete Scene constructor
+ * @param {Object} config
+ * @param {Integer} [config.width] - canvas width in pixels
+ * @param {Integer} [config.height] - canvas height in pixels
+ */
+Concrete.Scene = function(config) {
+  if (!config) {
+    config = {};
+  }
+
+  this.width = 0;
+  this.height = 0;
+  this.contextType = config.contextType || '2d';
+
+  this.id = idCounter++;
+  this.canvas = document.createElement('canvas');
+  this.canvas.className = 'concrete-scene-canvas';
+  this.canvas.style.display = 'inline-block';
+  this.context = this.canvas.getContext(this.contextType);
+
+  if (config.width && config.height) {
+    this.setSize(config.width, config.height);
+  }
+};
+
+Concrete.Scene.prototype = {
+  /**
+   * set scene size
+   * @param {Number} width
+   * @param {Number} height
+   * @returns {Concrete.Scene}
+   */
+  setSize: function(width, height) {
+    this.width = width;
+    this.height = height;
+
+    this.id = idCounter++;
+    this.canvas.width = width * Concrete.PIXEL_RATIO;
+    this.canvas.style.width = width + 'px';
+    this.canvas.height = height * Concrete.PIXEL_RATIO;
+    this.canvas.style.height = height + 'px'; 
+
+    if (this.contextType === '2d' && Concrete.PIXEL_RATIO !== 1) {
+      this.context.scale(Concrete.PIXEL_RATIO, Concrete.PIXEL_RATIO);
+    }
+
+    return this;
+  },
+  /** 
+   * clear scene
+   * @returns {Concrete.Scene}
+   */
+  clear: function() {
+    var context = this.context;
+    if (this.contextType === '2d') {
+      context.clearRect(0, 0, this.width * Concrete.PIXEL_RATIO, this.height * Concrete.PIXEL_RATIO);
+    }
+    // webgl or webgl2
+    else {
+      context.clear(context.COLOR_BUFFER_BIT | context.DEPTH_BUFFER_BIT);
+    }
+    return this;
+  },
+  /** 
+   * convert scene into an image
+   * @param {Function} callback
+   */
+  toImage: function(callback) {
+    var that = this,
+        imageObj = new Image(),
+        dataURL = this.canvas.toDataURL('image/png');
+
+    imageObj.onload = function() {
+      imageObj.width = that.width;
+      imageObj.height = that.height;
+      callback(imageObj);
+    };
+    imageObj.src = dataURL;
+  },
+  /** 
+   * download scene as an image
+   * @param {Object} config
+   * @param {String} config.fileName
+   */
+  download: function(config) {
+    this.canvas.toBlob(function(blob) {
+      var anchor = document.createElement('a'),
+          dataUrl  = URL.createObjectURL(blob),
+          fileName = config.fileName || 'canvas.png',
+          evtObj;
+
+      // set a attributes
+      anchor.setAttribute('href', dataUrl);
+      anchor.setAttribute('target', '_blank');
+      anchor.setAttribute('download', fileName);
+
+      // simulate click
+      if (document.createEvent) {
+        evtObj = document.createEvent('MouseEvents');
+        evtObj.initEvent('click', true, true);
+        anchor.dispatchEvent(evtObj);
+      }
+      else if (anchor.click) {
+        anchor.click();
+      }
+    });
+  }
+};
+
+////////////////////////////////////////////////////////////// HIT //////////////////////////////////////////////////////////////
+
+/**
+ * Concrete Hit constructor
+ * @param {Object} config
+ * @param {Integer} [config.width] - canvas width in pixels
+ * @param {Integer} [config.height] - canvas height in pixels
+ */
+Concrete.Hit = function(config) {
+  if (!config) {
+    config = {};
+  }
+
+  this.width = 0;
+  this.height = 0;
+  this.contextType = config.contextType || '2d';
+  this.canvas = document.createElement('canvas');
+  this.canvas.className = 'concrete-hit-canvas';
+  this.canvas.style.display = 'none';
+  this.canvas.style.position = 'relative';
+  this.context = this.canvas.getContext(this.contextType, {
+    // have to add preserveDrawingBuffer so that we can pick colors with readPixels for hit detection
+    preserveDrawingBuffer: true,
+    // solve webgl antialiasing picking issue
+    antialias: false
+  });
+
+  // this.hitColorIndex = 0;
+  // this.keyToColor = {};
+  // this.colorToKey = {};
+
+  if (config.width && config.height) {
+    this.setSize(config.width, config.height);
+  }
+};
+
+Concrete.Hit.prototype = {
+  /**
+   * set hit size
+   * @param {Number} width
+   * @param {Number} height
+   * @returns {Concrete.Hit}
+   */
+  setSize: function(width, height) {
+    this.width = width;
+    this.height = height;
+    this.canvas.width = width * Concrete.PIXEL_RATIO;
+    this.canvas.style.width = width + 'px';
+    this.canvas.height = height * Concrete.PIXEL_RATIO;
+    this.canvas.style.height = height + 'px';
+    return this;
+  },
+  /** 
+   * clear hit
+   * @returns {Concrete.Hit}
+   */
+  clear: function() {
+    var context = this.context;
+    if (this.contextType === '2d') {
+      context.clearRect(0, 0, this.width * Concrete.PIXEL_RATIO, this.height * Concrete.PIXEL_RATIO);
+    }
+    // webgl or webgl2
+    else {
+      context.clear(context.COLOR_BUFFER_BIT | context.DEPTH_BUFFER_BIT);
+    }
+    return this;
+  },
+  /**
+   * get key associated to coordinate.  This can be used for mouse interactivity.
+   * @param {Number} x
+   * @param {Number} y
+   * @returns {Integer} integer - returns -1 if no pixel is there
+   */
+  getIntersection: function(x, y) {
+    var context = this.context,
+        data;
+
+    // 2d
+    if (this.contextType === '2d') {
+      data = context.getImageData(Math.round(x), Math.round(y), 1, 1).data;
+
+      if (data[3] === 0) {
+        return -1;
+      }      
+    }
+    // webgl
+    else {
+      data = new Uint8Array(4);
+      context.readPixels(Math.round(x*Concrete.PIXEL_RATIO), Math.round((this.height - y)*Concrete.PIXEL_RATIO), 1, 1, context.RGBA, context.UNSIGNED_BYTE, data);
+
+      if (data[0] === 255 && data[1] === 255 && data[2] === 255) {
+        return -1;
+      }
+    }
+
+    return this.rgbToInt(data);
+  },
+  /**
+   * get canvas formatted color string from data index
+   * @param {Number} index
+   * @returns {String}
+   */
+  getColorFromIndex: function(index) {
+    var rgb = this.intToRGB(index);
+    return 'rgb(' + rgb[0] + ', ' + rgb[1] + ', ' + rgb[2] + ')';
+  },
+  /** 
+   * converts rgb array to integer value
+   * @param {Array.<Number} rgb - [r,g,b]
+   * @returns {Integer}
+   */
+  rgbToInt: function(rgb) {
+    var r = rgb[0];
+    var g = rgb[1];
+    var b = rgb[2];
+    return (r << 16) + (g << 8) + b;
+  },
+  /** 
+   * converts integer value to rgb array
+   * @param {Number} number - positive number between 0 and 256*256*256 = 16,777,216
+   * @returns {Array.<Integer>}
+   */
+  intToRGB: function(number) {
+    var r = (number & 0xff0000) >> 16;
+    var g = (number & 0x00ff00) >> 8;
+    var b = (number & 0x0000ff);
+    return [r, g, b];
+  },
+};
+
+
+// export
+(function (global) {
+  'use strict';
+
+  // AMD support
+  if (true) {
+    !(__WEBPACK_AMD_DEFINE_RESULT__ = (function () { return Concrete; }).call(exports, __webpack_require__, exports, module),
+				__WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
+  // CommonJS and Node.js module support.
+  } else {}
+})(this);
+
+
+/***/ }),
 
 /***/ "./engine/dist/icons/boxZoomIcon.svg.js":
 /*!**********************************************!*\
@@ -813,7 +1420,8 @@ const ElGraphoCollection = __webpack_require__(/*! ./ElGraphoCollection */ "./en
 const Controls = __webpack_require__(/*! ./components/Controls/Controls */ "./engine/src/components/Controls/Controls.js");
 const Count = __webpack_require__(/*! ./components/Count/Count */ "./engine/src/components/Count/Count.js");
 const Events = __webpack_require__(/*! ./Events */ "./engine/src/Events.js");
-const Concrete = __webpack_require__(/*! concretejs */ "./node_modules/concretejs/build/concrete.min.js");
+const Concrete = __webpack_require__(/*! ../../../../concrete/build/concrete.js */ "../../concrete/build/concrete.js");
+//const Concrete = require('concretejs');
 const _ = __webpack_require__(/*! lodash */ "./node_modules/lodash/lodash.js");
 const Color = __webpack_require__(/*! ./Color */ "./engine/src/Color.js");
 const Theme = __webpack_require__(/*! ./Theme */ "./engine/src/Theme.js");
@@ -822,17 +1430,20 @@ const NumberFormatter = __webpack_require__(/*! ./formatters/NumberFormatter */ 
 const VertexBridge = __webpack_require__(/*! ./VertexBridge */ "./engine/src/VertexBridge.js");
 const Enums = __webpack_require__(/*! ./Enums */ "./engine/src/Enums.js");
 const BoxZoom = __webpack_require__(/*! ./components/BoxZoom/BoxZoom */ "./engine/src/components/BoxZoom/BoxZoom.js");
-const Tree = __webpack_require__(/*! ./layouts/Tree */ "./engine/src/layouts/Tree.js");
-const Cluster = __webpack_require__(/*! ./layouts/Cluster */ "./engine/src/layouts/Cluster.js");
 const Dom = __webpack_require__(/*! ./Dom */ "./engine/src/Dom.js");
 const Loading = __webpack_require__(/*! ./components/Loading/Loading */ "./engine/src/components/Loading/Loading.js");
-const Ring = __webpack_require__(/*! ./layouts/Ring */ "./engine/src/layouts/Ring.js");
-const ForceDirected = __webpack_require__(/*! ./layouts/ForceDirected */ "./engine/src/layouts/ForceDirected.js");
 const Labels = __webpack_require__(/*! ./Labels */ "./engine/src/Labels.js");
-const Web = __webpack_require__(/*! ./layouts/Web */ "./engine/src/layouts/Web.js");
+
+const Tree = __webpack_require__(/*! ./layouts/Tree */ "./engine/src/layouts/Tree.js");
+const Cluster = __webpack_require__(/*! ./layouts/Cluster */ "./engine/src/layouts/Cluster.js");
+const Chord = __webpack_require__(/*! ./layouts/Chord */ "./engine/src/layouts/Chord.js");
+const ForceDirected = __webpack_require__(/*! ./layouts/ForceDirected */ "./engine/src/layouts/ForceDirected.js");
+const Hairball = __webpack_require__(/*! ./layouts/Hairball */ "./engine/src/layouts/Hairball.js");
+const RadialTree = __webpack_require__(/*! ./layouts/RadialTree */ "./engine/src/layouts/RadialTree.js");
 
 const ZOOM_FACTOR = 2;
 const START_SCALE = 1;
+const MAX_NODE_SIZE = 16;
 
 let ElGrapho = function(config) {
   let that = this;
@@ -865,7 +1476,9 @@ ElGrapho.prototype = {
     this.width = config.model.width;
     this.height = config.model.height;
     this.steps = config.model.steps;
-    this.nodeSize = config.nodeSize || 16;
+    this.nodeSize = config.nodeSize || 1;
+    this.nodeSize *= MAX_NODE_SIZE;
+    
     this.animations = [];
     this.wrapper = document.createElement('div');
     this.wrapper.className = 'el-grapho-wrapper';
@@ -1065,13 +1678,15 @@ ElGrapho.prototype = {
       }
     });
     viewport.container.addEventListener('mousedown', function(evt) {
+      Tooltip.hide();
+      
       if (Dom.closest(evt.target, '.el-grapho-controls')) {
         return;
       }
       if (that.interactionMode === Enums.interactionMode.PAN) {
         let mousePos = that.getMousePosition(evt);
         that.panStart = mousePos;
-        Tooltip.hide();
+        
 
       }
     });
@@ -1398,13 +2013,14 @@ ElGrapho.NumberFormatter = NumberFormatter;
 ElGrapho.layouts = {
   Tree: Tree,
   Cluster: Cluster,
-  Ring: Ring,
+  Chord: Chord,
   ForceDirected: ForceDirected,
-  Web: Web
+  Hairball: Hairball,
+  RadialTree: RadialTree
 };
 
+// node.js export
 module.exports = ElGrapho;
-
 
 /***/ }),
 
@@ -1518,6 +2134,9 @@ let ElGraphoCollection = {
 
 module.exports = ElGraphoCollection;
 
+if (window) {
+  window.ElGraphoCollection = ElGraphoCollection;
+}
 
 /***/ }),
 
@@ -1869,7 +2488,7 @@ module.exports = VertexBridge;
 
 const glMatrix = __webpack_require__(/*! gl-matrix */ "./node_modules/gl-matrix/lib/gl-matrix.js");
 const mat4 = glMatrix.mat4;
-const Concrete = __webpack_require__(/*! concretejs */ "./node_modules/concretejs/build/concrete.min.js");
+const Concrete = __webpack_require__(/*! ../../../../concrete/build/concrete.js */ "../../concrete/build/concrete.js");
 const pointVert = __webpack_require__(/*! ../dist/shaders/point.vert */ "./engine/dist/shaders/point.vert.js");
 const pointStrokeVert = __webpack_require__(/*! ../dist/shaders/pointStroke.vert */ "./engine/dist/shaders/pointStroke.vert.js");
 const hitPointVert = __webpack_require__(/*! ../dist/shaders/hitPoint.vert */ "./engine/dist/shaders/hitPoint.vert.js");
@@ -2517,6 +3136,32 @@ module.exports = NumberFormatter;
 
 /***/ }),
 
+/***/ "./engine/src/layouts/Chord.js":
+/*!*************************************!*\
+  !*** ./engine/src/layouts/Chord.js ***!
+  \*************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+const fitToViewport = __webpack_require__(/*! ./utils/fitToViewport */ "./engine/src/layouts/utils/fitToViewport.js");
+
+const Chord = function(model) {
+  let numNodes = model.nodes.length;
+  model.nodes.forEach(function(node, n) {
+    let angle = (-1*Math.PI*2*n / numNodes) + Math.PI/2;
+    node.x = Math.cos(angle);
+    node.y = Math.sin(angle);
+  });
+
+  fitToViewport(model.nodes, false);
+
+  return model;
+};
+
+module.exports = Chord;
+
+/***/ }),
+
 /***/ "./engine/src/layouts/Cluster.js":
 /*!***************************************!*\
   !*** ./engine/src/layouts/Cluster.js ***!
@@ -2575,8 +3220,8 @@ const Cluster = function(model) {
       clusterCenterY = 0;
     }
     else {
-      clusterCenterX = Math.cos(centerAngle) * xFactor;
-      clusterCenterY = Math.sin(centerAngle) * yFactor;
+      clusterCenterX = Math.cos(centerAngle);
+      clusterCenterY = Math.sin(centerAngle);
     }
 
     let radius = arcLength;
@@ -2597,7 +3242,7 @@ const Cluster = function(model) {
     groupIndex++;
   }
 
-  fitToViewport(model.nodes);
+  fitToViewport(model.nodes, true);
 
   return model;
 };
@@ -2615,7 +3260,6 @@ module.exports = Cluster;
 
 const fitToViewport = __webpack_require__(/*! ./utils/fitToViewport */ "./engine/src/layouts/utils/fitToViewport.js");
 const d3 = __webpack_require__(/*! d3-force */ "./node_modules/d3-force/src/index.js");
-
 const DEFAULT_STEPS = 30;
 
 const ForceDirected = function(model) {
@@ -2623,7 +3267,6 @@ const ForceDirected = function(model) {
     model.steps = DEFAULT_STEPS;
   }
 
-  // convert to d3-force schema
   let nodes = [];
   let links = [];
 
@@ -2641,10 +3284,12 @@ const ForceDirected = function(model) {
     });
   });
 
-  let simulation = d3.forceSimulation(nodes)
+  // https://www.npmjs.com/package/d3-force
+  var simulation = d3.forceSimulation(nodes)
     .force('charge', d3.forceManyBody())
-    .force('link', d3.forceLink(links))
-    .force('center', d3.forceCenter());
+    .force('link', d3.forceLink(links).distance(20).strength(1)) 
+    .force('x', d3.forceX())
+    .force('y', d3.forceY());
 
   simulation.tick(model.steps);
   simulation.stop();
@@ -2654,7 +3299,7 @@ const ForceDirected = function(model) {
     model.nodes[n].y = node.y;
   });
 
-  fitToViewport(model.nodes);
+  fitToViewport(model.nodes, false);
 
   return model;
 };
@@ -2663,163 +3308,10 @@ module.exports = ForceDirected;
 
 /***/ }),
 
-/***/ "./engine/src/layouts/Ring.js":
-/*!************************************!*\
-  !*** ./engine/src/layouts/Ring.js ***!
-  \************************************/
-/*! no static exports found */
-/***/ (function(module, exports, __webpack_require__) {
-
-const fitToViewport = __webpack_require__(/*! ./utils/fitToViewport */ "./engine/src/layouts/utils/fitToViewport.js");
-
-const Ring = function(model) {
-  let numNodes = model.nodes.length;
-  model.nodes.forEach(function(node, n) {
-    let angle = (-1*Math.PI*2*n / numNodes) + Math.PI/2;
-    node.x = Math.cos(angle);
-    node.y = Math.sin(angle);
-  });
-
-  fitToViewport(model.nodes);
-
-  return model;
-};
-
-module.exports = Ring;
-
-/***/ }),
-
-/***/ "./engine/src/layouts/Tree.js":
-/*!************************************!*\
-  !*** ./engine/src/layouts/Tree.js ***!
-  \************************************/
-/*! no static exports found */
-/***/ (function(module, exports, __webpack_require__) {
-
-const fitToViewport = __webpack_require__(/*! ./utils/fitToViewport */ "./engine/src/layouts/utils/fitToViewport.js");
-
-let incrementAncestorTotals = function(node, val) {
-  node.totalDescendants+=val;
-
-  if (node.parent) {
-    incrementAncestorTotals(node.parent, val);
-  }
-};
-
-// DFS
-let buildMetaTree = function(srcNode, targetNode, left, right, level, callback) {
-  targetNode.children = [];
-  //targetNode.totalDescendants = 0;
-
-  targetNode.left = left;
-  targetNode.right = right;
-  targetNode.x = (left + right) / 2;
-  targetNode.level = level;
-  targetNode.group = srcNode.group || 0;
-  targetNode.index = srcNode.index;
-
-  callback(targetNode);
-
-  if (srcNode.children) {
-    let range = right - left;
-    let childRange = range / srcNode.children.length;
-    let childLeft = left;
-
-    for (let n=0; n<srcNode.children.length; n++) {
-      let childRight = childLeft + childRange;
-
-      targetNode.children.push({
-        parent: targetNode
-      });
-      buildMetaTree(srcNode.children[n], targetNode.children[n], childLeft, childRight, level+1, callback);
-
-      childLeft += childRange;
-    }
-
-    incrementAncestorTotals(targetNode, srcNode.children.length);
-  }
-
-};
-
-// BFS
-let getNestedTree = function(model) {
-  let nodes = model.nodes;
-  let edges = model.edges;
-  let nestedNodes = {};
-
-  // build nodes
-  nodes.forEach(function(node, n) {
-    nestedNodes[n] = {
-      index: n,
-      group: node.group,
-      children: [],
-      hasParent: false
-    };
-  });
-
-  edges.forEach(function(edge) {
-    let fromIndex = edge.from;
-    let toIndex = edge.to;
-
-    // parent child relationship
-    nestedNodes[fromIndex].children.push(nestedNodes[toIndex]);
-    nestedNodes[toIndex].parent = nestedNodes[fromIndex];
-    nestedNodes[toIndex].hasParent = true;
-  });
-
-  // to find the root node, iterate through nodes and find the node that does not have a parent
-  for (var key in nestedNodes) {
-    let node = nestedNodes[key];
-    if (!node.hasParent) {
-      return node;
-    }
-  }
-
-  return null;
-};
-
-
-const Tree = function(model) {
-  let rootNode = getNestedTree(model);
-  let newRootNode = {};
-  let nodes = [];
-  let n=0;
-  let maxLevel = 0;
-
-  // O(n)
-  buildMetaTree(rootNode, newRootNode, -1, 1, 1, function(node) {
-    nodes[n] = node;
-    n++;
-
-    if (node.level > maxLevel) {
-      maxLevel = node.level;
-    }
-  });
-
-  nodes.sort(function(a, b) {
-    return a.index - b.index;
-  });
-
-  // O(n)
-  nodes.forEach(function(node, n) {
-    model.nodes[n].x = node.x;
-    model.nodes[n].y = 1 - (2 * ((node.level - 1) / (maxLevel - 1)));
-
-  });
-
-  fitToViewport(model.nodes);
-
-  return model;
-};
-
-module.exports = Tree;
-
-/***/ }),
-
-/***/ "./engine/src/layouts/Web.js":
-/*!***********************************!*\
-  !*** ./engine/src/layouts/Web.js ***!
-  \***********************************/
+/***/ "./engine/src/layouts/Hairball.js":
+/*!****************************************!*\
+  !*** ./engine/src/layouts/Hairball.js ***!
+  \****************************************/
 /*! no static exports found */
 /***/ (function(module, exports, __webpack_require__) {
 
@@ -2893,24 +3385,222 @@ const attractNodes = function(nodes, edges) {
   });
 };
 
-const Web = function(model) {
-  let steps = model.steps === undefined ? DEFAULT_STEPS : model.steps;
+const Hairball = function(model) {
+  if (model.steps === undefined) {
+    model.steps = DEFAULT_STEPS;
+  }
+
   let nodes = model.nodes;
   let edges = model.edges;
 
   initNodePositions(nodes);
 
   // process steps
-  for (let n=1; n<steps; n++) {
+  for (let n=1; n<model.steps; n++) {
     attractNodes(nodes, edges);
   }
 
-  fitToViewport(nodes);
+  fitToViewport(nodes, false);
 
   return model;
 };
 
-module.exports = Web;
+module.exports = Hairball;
+
+/***/ }),
+
+/***/ "./engine/src/layouts/RadialTree.js":
+/*!******************************************!*\
+  !*** ./engine/src/layouts/RadialTree.js ***!
+  \******************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+const fitToViewport = __webpack_require__(/*! ./utils/fitToViewport */ "./engine/src/layouts/utils/fitToViewport.js");
+const buildTreeLevels = __webpack_require__(/*! ./utils/buildTreeLevels */ "./engine/src/layouts/utils/buildTreeLevels.js");
+
+const RadialTree = function(model) {
+  let treeLevels = buildTreeLevels(model);
+
+  treeLevels.forEach(function(nodes, level) {
+    let radius = level === 0 ? 0 : 1 - Math.pow(0.9, level);
+
+    nodes.forEach(function(node) {
+      let n = node.index;
+      let angle = Math.PI * node.pos;
+     
+      model.nodes[n].x = radius * Math.cos(angle);
+      model.nodes[n].y = radius * Math.sin(angle);
+    });
+  });
+
+  fitToViewport(model.nodes, false);
+
+  return model;
+};
+
+module.exports = RadialTree;
+
+/***/ }),
+
+/***/ "./engine/src/layouts/Tree.js":
+/*!************************************!*\
+  !*** ./engine/src/layouts/Tree.js ***!
+  \************************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+const fitToViewport = __webpack_require__(/*! ./utils/fitToViewport */ "./engine/src/layouts/utils/fitToViewport.js");
+const buildTreeLevels = __webpack_require__(/*! ./utils/buildTreeLevels */ "./engine/src/layouts/utils/buildTreeLevels.js");
+
+const Tree = function(model) {
+  let treeLevels = buildTreeLevels(model);
+  let numLevels = treeLevels.length;
+
+  let maxDist = Math.pow(1.3, treeLevels.length-1);
+
+  // O(n)
+  treeLevels.forEach(function(nodes, level) {
+    nodes.forEach(function(node) {
+      let n = node.index;
+      let dist = (Math.pow(1.3, numLevels - level)) / maxDist;
+
+      model.nodes[n].x = node.pos;
+      //model.nodes[n].y = 1 - (2 * (level / (numLevels - 1)));
+      model.nodes[n].y = dist;
+    });
+  });
+
+  fitToViewport(model.nodes, false);
+
+  return model;
+};
+
+module.exports = Tree;
+
+/***/ }),
+
+/***/ "./engine/src/layouts/utils/buildTreeLevels.js":
+/*!*****************************************************!*\
+  !*** ./engine/src/layouts/utils/buildTreeLevels.js ***!
+  \*****************************************************/
+/*! no static exports found */
+/***/ (function(module, exports) {
+
+
+let incrementAncestorTotals = function(node, val) {
+  node.totalDescendants+=val;
+
+  if (node.parent) {
+    incrementAncestorTotals(node.parent, val);
+  }
+};
+
+// DFS
+let buildMetaTree = function(srcNode, targetNode, left, right, level, callback) {
+  targetNode.children = [];
+  //targetNode.totalDescendants = 0;
+
+  targetNode.left = left;
+  targetNode.right = right;
+  targetNode.pos = (left + right) / 2;
+  targetNode.level = level;
+  targetNode.group = srcNode.group || 0;
+  targetNode.index = srcNode.index;
+
+  callback(targetNode);
+
+  if (srcNode.children) {
+    let range = right - left;
+    let childRange = range / srcNode.children.length;
+    let childLeft = left;
+
+    for (let n=0; n<srcNode.children.length; n++) {
+      let childRight = childLeft + childRange;
+
+      targetNode.children.push({
+        parent: targetNode
+      });
+      buildMetaTree(srcNode.children[n], targetNode.children[n], childLeft, childRight, level+1, callback);
+
+      childLeft += childRange;
+    }
+
+    incrementAncestorTotals(targetNode, srcNode.children.length);
+  }
+
+};
+
+// BFS
+let getNestedTree = function(model) {
+  let nodes = model.nodes;
+  let edges = model.edges;
+  let nestedNodes = {};
+
+  // build nodes
+  nodes.forEach(function(node, n) {
+    nestedNodes[n] = {
+      index: n,
+      group: node.group,
+      children: [],
+      hasParent: false
+    };
+  });
+
+  edges.forEach(function(edge) {
+    let fromIndex = edge.from;
+    let toIndex = edge.to;
+
+    // parent child relationship
+    nestedNodes[fromIndex].children.push(nestedNodes[toIndex]);
+    nestedNodes[toIndex].parent = nestedNodes[fromIndex];
+    nestedNodes[toIndex].hasParent = true;
+  });
+
+  // to find the root node, iterate through nodes and find the node that does not have a parent
+  for (var key in nestedNodes) {
+    let node = nestedNodes[key];
+    if (!node.hasParent) {
+      return node;
+    }
+  }
+
+  return null;
+};
+
+module.exports = function(model) {
+  let rootNode = getNestedTree(model);
+  let newRootNode = {};
+  let nodes = [];
+  let n=0;
+  let maxLevel = 0;
+  let levels = [];
+
+  // O(n)
+  buildMetaTree(rootNode, newRootNode, -1, 1, 0, function(node) {
+    nodes[n] = node;
+    n++;
+
+    if (node.level > maxLevel) {
+      maxLevel = node.level;
+    }
+  });
+
+  nodes.sort(function(a, b) {
+    return a.index - b.index;
+  });
+
+  for (let i=0; i<=maxLevel; i++) {
+    levels.push([]);
+  }
+
+  nodes.forEach(function(node, n) {
+    node.index = n;
+    levels[node.level].push(node);
+  });
+
+  return levels;
+};
 
 /***/ }),
 
@@ -2921,7 +3611,7 @@ module.exports = Web;
 /*! no static exports found */
 /***/ (function(module, exports) {
 
-module.exports = function(nodes) {
+module.exports = function(nodes, maintainAspectRatio) {
   let minX = Number.POSITIVE_INFINITY;
   let minY = Number.POSITIVE_INFINITY;
   let maxX = Number.NEGATIVE_INFINITY;
@@ -2947,593 +3637,18 @@ module.exports = function(nodes) {
   let yFactor = 1.9 / diffY;
 
   // we want to adjust the x and y equally to preserve ratio
-  let factor = Math.min(xFactor, yFactor);
+
+  if (maintainAspectRatio) {
+    let factor = Math.min(xFactor, yFactor);
+    xFactor = factor;
+    yFactor = factor;
+  }
 
   nodes.forEach(function(node) {
-    node.x = (node.x - xOffset) * factor;
-    node.y = (node.y - yOffset) * factor;
+    node.x = (node.x - xOffset) * xFactor;
+    node.y = (node.y - yOffset) * yFactor;
   });
 };
-
-/***/ }),
-
-/***/ "./node_modules/concretejs/build/concrete.min.js":
-/*!*******************************************************!*\
-  !*** ./node_modules/concretejs/build/concrete.min.js ***!
-  \*******************************************************/
-/*! no static exports found */
-/***/ (function(module, exports, __webpack_require__) {
-
-var __WEBPACK_AMD_DEFINE_RESULT__;/*
- * Concrete v3.0.2
- * A lightweight Html5 Canvas framework that enables hit detection, layering, multi buffering, 
- * pixel ratio management, exports, and image downloads
- * Release Date: 11-20-2018
- * https://github.com/ericdrowell/concrete
- * Licensed under the MIT or GPL Version 2 licenses.
- *
- * Copyright (C) 2018 Eric Rowell @ericdrowell
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- */
-var Concrete = {},
-    idCounter = 0;
-
-Concrete.PIXEL_RATIO = (function(r) {
-  // client browsers
-  if (r && r.navigator && r.navigator.userAgent && !/PhantomJS/.test(r.navigator.userAgent)) {
-    return 2;
-  }
-  // headless browsers
-  else {
-    return 1;
-  }
-})(typeof window !== 'undefined' ? window : null);
-
-Concrete.viewports = [];
-
-////////////////////////////////////////////////////////////// VIEWPORT //////////////////////////////////////////////////////////////
-
-/**
- * Concrete Viewport constructor
- * @param {Object} config
- * @param {Integer} config.width - viewport width in pixels
- * @param {Integer} config.height - viewport height in pixels
- */
-Concrete.Viewport = function(config) {
-  if (!config) {
-    config = {};
-  }
-
-  this.container = config.container;
-  this.layers = []; 
-  this.id = idCounter++;
-  this.scene = new Concrete.Scene();
-
-  this.setSize(config.width || 0, config.height || 0);
-  
-
-  // clear container
-  config.container.innerHTML = '';
-  config.container.appendChild(this.scene.canvas);
-
-  Concrete.viewports.push(this);
-};
-
-Concrete.Viewport.prototype = {
-  /**
-   * add layer
-   * @param {Concrete.Layer} layer
-   * @returns {Concrete.Viewport}
-   */
-  add: function(layer) {
-    this.layers.push(layer);
-    layer.setSize(layer.width || this.width, layer.height || this.height);
-    layer.viewport = this;
-    return this;
-  },
-  /**
-   * set viewport size
-   * @param {Integer} width - viewport width in pixels
-   * @param {Integer} height - viewport height in pixels
-   * @returns {Concrete.Viewport}
-   */
-  setSize: function(width, height) {
-    this.width = width;
-    this.height = height;
-    this.scene.setSize(width, height);
-    return this;
-  },
-  /**
-   * get key associated to coordinate.  This can be used for mouse interactivity.
-   * @param {Number} x
-   * @param {Number} y
-   * @returns {Integer} integer - returns -1 if no pixel is there
-   */
-  getIntersection: function(x, y) {
-    var layers = this.layers,
-        len = layers.length,
-        n, layer, key;
-
-    for (n=len-1; n>=0; n--) {
-      layer = layers[n];
-      key = layer.hit.getIntersection(x, y);
-      if (key >= 0) {
-        return key;
-      }
-    }
-
-    return -1;
-  },
-  /** 
-   * get viewport index from all Concrete viewports
-   * @returns {Integer}
-   */
-  getIndex: function() {
-    var viewports = Concrete.viewports,
-        len = viewports.length,
-        n = 0,
-        viewport;
-
-    for (n=0; n<len; n++) {
-      viewport = viewports[n];
-      if (this.id === viewport.id) {
-        return n;
-      }
-    }
-
-    return null;
-  },
-  /**
-   * destroy viewport
-   */
-  destroy: function() {
-    // destroy layers
-    this.layers.forEach(function(layer) {
-      layer.destroy();
-    });
-
-    // clear dom
-    this.container.innerHTML = '';
-    
-    // remove self from viewports array
-    Concrete.viewports.splice(this.getIndex(), 1);
-  },
-  /**
-   * composite all layers onto visible canvas
-   */
-  render: function() {
-    var scene = this.scene;
-
-    scene.clear();
-
-    this.layers.forEach(function(layer) {
-      if (layer.visible) {
-        scene.context.drawImage(layer.scene.canvas, 0, 0, layer.width, layer.height);
-      }
-    });
-  }
-};
-
-////////////////////////////////////////////////////////////// LAYER //////////////////////////////////////////////////////////////
-
-/**
- * Concrete Layer constructor
- * @param {Object} config
- * @param {Integer} [config.x]
- * @param {Integer} [config.y]
- * @param {Integer} [config.width] - viewport width in pixels
- * @param {Integer} [config.height] - viewport height in pixels
- */
-Concrete.Layer = function(config) {
-  if (!config) {
-    config = {};
-  }
-  this.x = 0;
-  this.y = 0;
-  this.width = 0;
-  this.height = 0;
-  this.visible = true;
-  this.id = idCounter++;
-  this.hit = new Concrete.Hit({
-    contextType: config.contextType
-  });
-  this.scene = new Concrete.Scene({
-    contextType: config.contextType
-  });
-
-  if (config.x && config.y) {
-    this.setPosition(config.x, config.y);
-  }
-  if (config.width && config.height) {
-    this.setSize(config.width, config.height);
-  }
-};
-
-Concrete.Layer.prototype = {
-  /**
-   * set layer position
-   * @param {Number} x
-   * @param {Number} y
-   * @returns {Concrete.Layer}
-   */
-  setPosition: function(x, y) {
-    this.x = x;
-    this.y = y;
-    return this;
-  },
-  /**
-   * set layer size
-   * @param {Number} width
-   * @param {Number} height
-   * @returns {Concrete.Layer}
-   */
-  setSize: function(width, height) {
-    this.width = width;
-    this.height = height;
-    this.scene.setSize(width, height);
-    this.hit.setSize(width, height);
-    return this;
-  },
-  /** 
-   * move up
-   * @returns {Concrete.Layer}
-   */
-  moveUp: function() {
-    var index = this.getIndex(),
-        viewport = this.viewport,
-        layers = viewport.layers;
-
-    if (index < layers.length - 1) {
-      // swap
-      layers[index] = layers[index+1];
-      layers[index+1] = this;
-    }
-
-    return this;
-  },
-  /** 
-   * move down
-   * @returns {Concrete.Layer}
-   */
-  moveDown: function() {
-    var index = this.getIndex(),
-        viewport = this.viewport,
-        layers = viewport.layers;
-
-    if (index > 0) {
-      // swap
-      layers[index] = layers[index-1];
-      layers[index-1] = this;
-    }
-
-    return this;
-  },
-  /** 
-   * move to top
-   * @returns {Concrete.Layer}
-   */
-  moveToTop: function() {
-    var index = this.getIndex(),
-        viewport = this.viewport,
-        layers = viewport.layers;
-
-    layers.splice(index, 1);
-    layers.push(this);
-  },
-  /** 
-   * move to bottom
-   * @returns {Concrete.Layer}
-   */
-  moveToBottom: function() {
-    var index = this.getIndex(),
-        viewport = this.viewport,
-        layers = viewport.layers;
-
-    layers.splice(index, 1);
-    layers.unshift(this);
-
-    return this;
-  },
-  /** 
-   * get layer index from viewport layers
-   * @returns {Number|null}
-   */
-  getIndex: function() {
-    var layers = this.viewport.layers,
-        len = layers.length,
-        n = 0,
-        layer;
-
-    for (n=0; n<len; n++) {
-      layer = layers[n];
-      if (this.id === layer.id) {
-        return n;
-      }
-    }
-
-    return null;
-  },
-  /**
-   * destroy
-   */
-  destroy: function() {
-    // remove self from layers array
-    this.viewport.layers.splice(this.getIndex(), 1);
-  }
-};
-
-////////////////////////////////////////////////////////////// SCENE //////////////////////////////////////////////////////////////
-
-/**
- * Concrete Scene constructor
- * @param {Object} config
- * @param {Integer} [config.width] - canvas width in pixels
- * @param {Integer} [config.height] - canvas height in pixels
- */
-Concrete.Scene = function(config) {
-  if (!config) {
-    config = {};
-  }
-
-  this.width = 0;
-  this.height = 0;
-  this.contextType = config.contextType || '2d';
-
-  this.id = idCounter++;
-  this.canvas = document.createElement('canvas');
-  this.canvas.className = 'concrete-scene-canvas';
-  this.canvas.style.display = 'inline-block';
-  this.context = this.canvas.getContext(this.contextType);
-
-  if (config.width && config.height) {
-    this.setSize(config.width, config.height);
-  }
-};
-
-Concrete.Scene.prototype = {
-  /**
-   * set scene size
-   * @param {Number} width
-   * @param {Number} height
-   * @returns {Concrete.Scene}
-   */
-  setSize: function(width, height) {
-    this.width = width;
-    this.height = height;
-
-    this.id = idCounter++;
-    this.canvas.width = width * Concrete.PIXEL_RATIO;
-    this.canvas.style.width = width + 'px';
-    this.canvas.height = height * Concrete.PIXEL_RATIO;
-    this.canvas.style.height = height + 'px'; 
-
-    if (this.contextType === '2d' && Concrete.PIXEL_RATIO !== 1) {
-      this.context.scale(Concrete.PIXEL_RATIO, Concrete.PIXEL_RATIO);
-    }
-
-    return this;
-  },
-  /** 
-   * clear scene
-   * @returns {Concrete.Scene}
-   */
-  clear: function() {
-    var context = this.context;
-    if (this.contextType === '2d') {
-      context.clearRect(0, 0, this.width * Concrete.PIXEL_RATIO, this.height * Concrete.PIXEL_RATIO);
-    }
-    // webgl or webgl2
-    else {
-      context.clear(context.COLOR_BUFFER_BIT | context.DEPTH_BUFFER_BIT);
-    }
-    return this;
-  },
-  /** 
-   * convert scene into an image
-   * @param {Function} callback
-   */
-  toImage: function(callback) {
-    var that = this,
-        imageObj = new Image(),
-        dataURL = this.canvas.toDataURL('image/png');
-
-    imageObj.onload = function() {
-      imageObj.width = that.width;
-      imageObj.height = that.height;
-      callback(imageObj);
-    };
-    imageObj.src = dataURL;
-  },
-  /** 
-   * download scene as an image
-   * @param {Object} config
-   * @param {String} config.fileName
-   */
-  download: function(config) {
-    this.canvas.toBlob(function(blob) {
-      var anchor = document.createElement('a'),
-          dataUrl  = URL.createObjectURL(blob),
-          fileName = config.fileName || 'canvas.png',
-          evtObj;
-
-      // set a attributes
-      anchor.setAttribute('href', dataUrl);
-      anchor.setAttribute('target', '_blank');
-      anchor.setAttribute('download', fileName);
-
-      // simulate click
-      if (document.createEvent) {
-        evtObj = document.createEvent('MouseEvents');
-        evtObj.initEvent('click', true, true);
-        anchor.dispatchEvent(evtObj);
-      }
-      else if (anchor.click) {
-        anchor.click();
-      }
-    });
-  }
-};
-
-////////////////////////////////////////////////////////////// HIT //////////////////////////////////////////////////////////////
-
-/**
- * Concrete Hit constructor
- * @param {Object} config
- * @param {Integer} [config.width] - canvas width in pixels
- * @param {Integer} [config.height] - canvas height in pixels
- */
-Concrete.Hit = function(config) {
-  if (!config) {
-    config = {};
-  }
-
-  this.width = 0;
-  this.height = 0;
-  this.contextType = config.contextType || '2d';
-  this.canvas = document.createElement('canvas');
-  this.canvas.className = 'concrete-hit-canvas';
-  this.canvas.style.display = 'none';
-  this.canvas.style.position = 'relative';
-  this.context = this.canvas.getContext(this.contextType, {
-    // have to add preserveDrawingBuffer so that we can pick colors with readPixels for hit detection
-    preserveDrawingBuffer: true,
-    // solve webgl antialiasing picking issue
-    antialias: false
-  });
-
-  // this.hitColorIndex = 0;
-  // this.keyToColor = {};
-  // this.colorToKey = {};
-
-  if (config.width && config.height) {
-    this.setSize(config.width, config.height);
-  }
-};
-
-Concrete.Hit.prototype = {
-  /**
-   * set hit size
-   * @param {Number} width
-   * @param {Number} height
-   * @returns {Concrete.Hit}
-   */
-  setSize: function(width, height) {
-    this.width = width;
-    this.height = height;
-    this.canvas.width = width * Concrete.PIXEL_RATIO;
-    this.canvas.style.width = width + 'px';
-    this.canvas.height = height * Concrete.PIXEL_RATIO;
-    this.canvas.style.height = height + 'px';
-    return this;
-  },
-  /** 
-   * clear hit
-   * @returns {Concrete.Hit}
-   */
-  clear: function() {
-    var context = this.context;
-    if (this.contextType === '2d') {
-      context.clearRect(0, 0, this.width * Concrete.PIXEL_RATIO, this.height * Concrete.PIXEL_RATIO);
-    }
-    // webgl or webgl2
-    else {
-      context.clear(context.COLOR_BUFFER_BIT | context.DEPTH_BUFFER_BIT);
-    }
-    return this;
-  },
-  /**
-   * get key associated to coordinate.  This can be used for mouse interactivity.
-   * @param {Number} x
-   * @param {Number} y
-   * @returns {Integer} integer - returns -1 if no pixel is there
-   */
-  getIntersection: function(x, y) {
-    var context = this.context,
-        data;
-
-    // 2d
-    if (this.contextType === '2d') {
-      data = context.getImageData(Math.round(x), Math.round(y), 1, 1).data;
-
-      if (data[3] === 0) {
-        return -1;
-      }      
-    }
-    // webgl
-    else {
-      data = new Uint8Array(4);
-      context.readPixels(Math.round(x*Concrete.PIXEL_RATIO), Math.round((this.height - y)*Concrete.PIXEL_RATIO), 1, 1, context.RGBA, context.UNSIGNED_BYTE, data);
-
-      if (data[0] === 255 && data[1] === 255 && data[2] === 255) {
-        return -1;
-      }
-    }
-
-    return this.rgbToInt(data);
-  },
-  /**
-   * get canvas formatted color string from data index
-   * @param {Number} index
-   * @returns {String}
-   */
-  getColorFromIndex: function(index) {
-    var rgb = this.intToRGB(index);
-    return 'rgb(' + rgb[0] + ', ' + rgb[1] + ', ' + rgb[2] + ')';
-  },
-  /** 
-   * converts rgb array to integer value
-   * @param {Array.<Number} rgb - [r,g,b]
-   * @returns {Integer}
-   */
-  rgbToInt: function(rgb) {
-    var r = rgb[0];
-    var g = rgb[1];
-    var b = rgb[2];
-    return (r << 16) + (g << 8) + b;
-  },
-  /** 
-   * converts integer value to rgb array
-   * @param {Number} number - positive number between 0 and 256*256*256 = 16,777,216
-   * @returns {Array.<Integer>}
-   */
-  intToRGB: function(number) {
-    var r = (number & 0xff0000) >> 16;
-    var g = (number & 0x00ff00) >> 8;
-    var b = (number & 0x0000ff);
-    return [r, g, b];
-  },
-};
-
-
-// export
-(function (global) {
-  'use strict';
-
-  // AMD support
-  if (true) {
-    !(__WEBPACK_AMD_DEFINE_RESULT__ = (function () { return Concrete; }).call(exports, __webpack_require__, exports, module),
-				__WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
-  // CommonJS and Node.js module support.
-  } else {}
-})(this);
-
 
 /***/ }),
 

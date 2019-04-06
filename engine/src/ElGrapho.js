@@ -14,17 +14,20 @@ const NumberFormatter = require('./formatters/NumberFormatter');
 const VertexBridge = require('./VertexBridge');
 const Enums = require('./Enums');
 const BoxZoom = require('./components/BoxZoom/BoxZoom');
-const Tree = require('./layouts/Tree');
-const Cluster = require('./layouts/Cluster');
 const Dom = require('./Dom');
 const Loading = require('./components/Loading/Loading');
-const Ring = require('./layouts/Ring');
-const ForceDirected = require('./layouts/ForceDirected');
 const Labels = require('./Labels');
-const Web = require('./layouts/Web');
+
+const Tree = require('./layouts/Tree');
+const Cluster = require('./layouts/Cluster');
+const Chord = require('./layouts/Chord');
+const ForceDirected = require('./layouts/ForceDirected');
+const Hairball = require('./layouts/Hairball');
+const RadialTree = require('./layouts/RadialTree');
 
 const ZOOM_FACTOR = 2;
 const START_SCALE = 1;
+const MAX_NODE_SIZE = 16;
 
 let ElGrapho = function(config) {
   let that = this;
@@ -57,7 +60,9 @@ ElGrapho.prototype = {
     this.width = config.model.width;
     this.height = config.model.height;
     this.steps = config.model.steps;
-    this.nodeSize = config.nodeSize || 16;
+    this.nodeSize = config.nodeSize || 1;
+    this.nodeSize *= MAX_NODE_SIZE;
+    
     this.animations = [];
     this.wrapper = document.createElement('div');
     this.wrapper.className = 'el-grapho-wrapper';
@@ -257,13 +262,15 @@ ElGrapho.prototype = {
       }
     });
     viewport.container.addEventListener('mousedown', function(evt) {
+      Tooltip.hide();
+      
       if (Dom.closest(evt.target, '.el-grapho-controls')) {
         return;
       }
       if (that.interactionMode === Enums.interactionMode.PAN) {
         let mousePos = that.getMousePosition(evt);
         that.panStart = mousePos;
-        Tooltip.hide();
+        
 
       }
     });
@@ -590,9 +597,10 @@ ElGrapho.NumberFormatter = NumberFormatter;
 ElGrapho.layouts = {
   Tree: Tree,
   Cluster: Cluster,
-  Ring: Ring,
+  Chord: Chord,
   ForceDirected: ForceDirected,
-  Web: Web
+  Hairball: Hairball,
+  RadialTree: RadialTree
 };
 
 module.exports = ElGrapho;
