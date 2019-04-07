@@ -1,5 +1,11 @@
 # Changlog
 
+## v2.1.1
+* fixed bug related to events firing multiple times when creating multiple graphs
+* fixed Concrete dependency issue
+* fixed ElGraphoCollection issue in which it was being instantiated everytime a new graph was created
+* fixed tooltip hide and show issues
+
 ## v2.1.0
 * models are now called layouts
 * Ring layout renamed to Chord
