@@ -601,9 +601,6 @@ ElGrapho.prototype = {
     // viewport
     this.viewport.destroy();
 
-    // dom events outside of viewport
-    this.removeDomListeners();
-
     // remove from collection
     let graphs = ElGraphoCollection.graphs;
     let len = graphs.length;
