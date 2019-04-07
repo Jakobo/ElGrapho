@@ -1,5 +1,5 @@
 /*
- * El Grapho v2.1.0
+ * El Grapho v2.1.1
  * A high performance WebGL graph data visualization engine
  * Release Date: 04-06-2019
  * https://github.com/ericdrowell/elgrapho
@@ -1118,7 +1118,7 @@ ElGrapho.prototype = {
     });
 
     this.addListener(viewport.container, 'mousedown', function(evt) {
-      Tooltip.hide();
+      
       
       if (Dom.closest(evt.target, '.el-grapho-controls')) {
         return;
@@ -1126,6 +1126,7 @@ ElGrapho.prototype = {
       if (that.interactionMode === Enums.interactionMode.PAN) {
         let mousePos = that.getMousePosition(evt);
         that.panStart = mousePos;
+        Tooltip.hide();
         
 
       }
@@ -1150,7 +1151,14 @@ ElGrapho.prototype = {
 
           viewport.scene.canvas.style.marginLeft = mouseDiff.x + 'px';
           viewport.scene.canvas.style.marginTop = mouseDiff.y + 'px';
+
+          
         }
+      }
+
+      // if panning or zoom boxing hide tooltip
+      if (that.panStart || that.zoomBoxAnchor) {
+        Tooltip.hide();
       }
 
       // don't show tooltips if actively panning or zoom boxing
@@ -1321,6 +1329,7 @@ ElGrapho.prototype = {
     this.wrapper.className = 'el-grapho-wrapper el-grapho-' + mode + '-interaction-mode';
   },
   zoomToPoint: function(panX, panY, zoomX, zoomY) {
+    Tooltip.hide();
     if (this.animations) {
       this.animations = [];
 
@@ -1365,12 +1374,15 @@ ElGrapho.prototype = {
     }
   },
   zoomIn: function() {
+    Tooltip.hide();
     this.zoomToPoint(0, 0, ZOOM_FACTOR, ZOOM_FACTOR);
   },
   zoomOut: function() {
+    Tooltip.hide();
     this.zoomToPoint(0, 0, 1/ZOOM_FACTOR, 1/ZOOM_FACTOR);
   },
   reset: function() {
+    Tooltip.hide();
     if (this.animations) {
       this.animations = [];
 
@@ -1437,14 +1449,7 @@ ElGrapho.prototype = {
     this.viewport.destroy();
 
     // remove from collection
-    let graphs = ElGraphoCollection.graphs;
-    let len = graphs.length;
-    for (let n=0; n<len; n++) {
-      if (graphs[n].id === this.id) {
-        graphs.splice(n, 1);
-        break;
-      }
-    }  
+    ElGraphoCollection.remove(this);
   }
 };
 
@@ -1486,6 +1491,7 @@ let ElGraphoCollection = {
   init: function() {
     ElGraphoCollection.injectStyles();
     ElGraphoCollection.executeFrame();
+    ElGraphoCollection.initialized = true;
   },
   injectStyles: function() {
     let head = document.getElementsByTagName('head')[0];
@@ -1572,6 +1578,20 @@ let ElGraphoCollection = {
     });
 
     requestAnimationFrame(ElGraphoCollection.executeFrame);
+  },
+  remove: function(graph) {
+    let graphs = ElGraphoCollection.graphs;
+    let len = graphs.length;
+    for (let n=0; n<len; n++) {
+      if (graphs[n].id === graph.id) {
+        graphs.splice(n, 1);
+        // return true if element found and removed
+        return true;
+      }
+    }
+
+    // return false if nothing was removed
+    return false;
   }
 };
 
@@ -1613,16 +1633,14 @@ module.exports = Enums;
 /***/ (function(module, exports) {
 
 let Events = function() {
-
+  this.funcs = {};
 };
 
 Events.prototype = {
-  funcs: {},
   on: function(name, func) {
     if (!this.funcs[name]) {
       this.funcs[name] = [];
     }
-
     this.funcs[name].push(func);
   },
   fire: function(name, evt) {
